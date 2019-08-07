@@ -1,7 +1,7 @@
-9562f3bee5f1253a556f31918ac21d00 *DESCRIPTION
+8bec5ff2fc472b06ca2d9b2f10220e79 *DESCRIPTION
 c26f0d6cbdf145c50fa6c4067adbbcdf *LICENSE
 6131e5b2a6aedc00e6e0a0857894fa51 *NAMESPACE
-65998de3e458349089678c8a1ad784f3 *R/MakeSigMatrix.R
+26ad261e59ae1bea27510ffb34091472 *R/MakeSigMatrix.R
 11e1035c1db6090a465148e2305d5004 *R/onlyDeconAlgorithms.R
 eb321efdf0fca3c163258674be0a1cdd *R/zzz.R
 40d8e71ddfd9e32a3220363829b42c95 *README.md
@@ -34,7 +34,7 @@ f644624cd5ea15747f6f588454da7429 *man/hierarchicalClassify.Rd
 9fd6b0d1ad0866752f751c327482a62b *man/loadMGSM27.Rd
 87307d5198efbc19e3df07f65a7e63d3 *man/loadModMap.Rd
 a9b6658d341f92b4f25b2ec581a3d3f1 *man/missForest.par.Rd
-6108b6568d1444112526683305cc6f33 *man/rankByT.Rd
+9f4dc3fe655b383b53c8268b9b8199b6 *man/rankByT.Rd
 4cb8e5cad8ffcd833d616f83fe855b36 *man/remakeLM22p.Rd
 46ea975cb329ee75869b4505e9c965a2 *man/spillToConvergence.Rd
 55e605e25b20b75c6df2fc7b1702a3e5 *man/weightNorm.Rd
