@@ -2,10 +2,10 @@
 % Please edit documentation in R/onlyDeconAlgorithms.R
 \name{clustWspillOver}
 \alias{clustWspillOver}
-\title{Build clusters based on n-pass spillover matrix}
+\title{Cluster with spillover}
 \usage{
 clustWspillOver(sigMatrix, geneExpr, nPasses = 100,
-  deconMatrices = NULL)
+  deconMatrices = NULL, method = "DCQ")
 }
 \arguments{
 \item{sigMatrix}{The deconvolution matrix, e.g. LM22 or MGSM27}
@@ -15,6 +15,8 @@ clustWspillOver(sigMatrix, geneExpr, nPasses = 100,
 \item{nPasses}{The maximum number of iterations for spillToConvergence (DEFAULT: 100)}
 
 \item{deconMatrices}{Optional pre-computed results from spillToConvergence (DEFAULT: NULL)}
+
+\item{method}{One of 'DCQ', 'SVMDECON', 'DeconRNASeq', 'proportionsInAdmixture', 'nnls' (DEFAULT: DCQ)}
 }
 \value{
 Cell types grouped by cluster
@@ -28,5 +30,5 @@ library(ADAPTS)
 fullLM22 <- ADAPTS::LM22[1:30, 1:4]
 smallLM22 <- fullLM22[1:25,] 
 
-clusters <- clustWspillOver(sigMatrix=smallLM22, geneExpr=fullLM22, nPasses=10, deconMatrices=NULL)
+clusters <- clustWspillOver(sigMatrix=smallLM22, geneExpr=fullLM22, nPasses=10)
 }

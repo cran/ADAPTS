@@ -3,7 +3,7 @@
 globalVariables(c('fe_cType', 'fe_curGene'))
 
 #' Use parallel missForest to impute missing values.
-#'   This wrapper is required because missForest crashed if you have more cores than variables.
+#' @description  This wrapper is helpful because missForest crashes if you have more cores than variables.
 #'   This will default to no parellelization for Windows
 #'
 #'   newMatrix <- missForest.par(dataMat)
@@ -53,9 +53,10 @@ missForest.par <- function(dataMat, parallelize = "variables") {
   return(newMatrix)
 }
 
-
-#' Use the full LM22 data matrix and add a few additional genes to cover osteoblasts, osteoclasts,
-#' Plasma.memory, MM.  In many ways this is just a convenient wrapper for AugmentSigMatrix
+#' Make an Augmented Signature Matrix
+#' @description With the ADAPTSdata packge, it will use the full LM22 data matrix and add a few 
+#' additional genes to cover osteoblasts, osteoclasts, Plasma.memory, MM.  In many ways this is 
+#' just a convenient wrapper for AugmentSigMatrix that calculates and caches a gList.
 #'
 #'
 #' @param exprData  The gene express data to use to augment LM22, e.g. ADAPTSdata::addMGSM27
@@ -90,7 +91,7 @@ remakeLM22p <- function(exprData, fullLM22, smallLM22=NULL, plotToPDF=TRUE, cond
   }
 
   #Combine additonalMM data and the full LM22 dataset
-  colnames(exprData) <- sub('\\.[0-9]+$', '', colnames(exprData))
+  colnames(exprData) <- sub('.[0-9]+$', '', colnames(exprData))
   cNames <- c(colnames(fullLM22), colnames(exprData))
 
   #Problem 04-19-17 - If I just use the original LM22 data, there's too many NA, I end up adding 950 genes
@@ -102,7 +103,7 @@ remakeLM22p <- function(exprData, fullLM22, smallLM22=NULL, plotToPDF=TRUE, cond
   rNames <- rNames.1[rNames.1 %in% rNames.2]
 
   geneExpr <- cbind(fullLM22[rNames,], as.data.frame(exprData)[rNames,])
-  colnames(geneExpr) <- sub('\\.[0-9]+$', '', colnames(geneExpr))
+  colnames(geneExpr) <- sub('.[0-9]+$', '', colnames(geneExpr))
 
   fName <- paste('gList', paste(rev(unique(colnames(geneExpr))), collapse="_"), 'RData', sep='.')
   if(nchar(fName) > 240) { print('Truncating name list.  File name may not be unique') }
@@ -122,13 +123,13 @@ remakeLM22p <- function(exprData, fullLM22, smallLM22=NULL, plotToPDF=TRUE, cond
   return(newMatData=as.data.frame(newMatData))
 }
 
-#' Build an augmented signature matrix from an initial signature matrix, source data, and a list of differentially expressed genes (gList)
-#'  The user might want to modify gList to make certain that particular genes are included in the matrix
-#'  The algorithm will be to add one additional gene from each new cell type
-#'  Record the condition number, and plot those.
-#'  Will only consider adding rows shared by fullData and newData
+#' Make an augmented signature matrix
+#' @description Build an augmented signature matrix from an initial signature matrix, source data, and a list of 
+#' differentially expressed genes (gList).  The user might want to modify gList to make certain that particular 
+#' genes are included in the matrix.  The algorithm will be to add one additional gene from each new cell type
+#' Record the condition number, and plot those.  Will only consider adding rows shared by fullData and newData
 #'
-#'  newMatData <- AugmentSigMatrix(origMatrix, fullData, newData)
+#'  newMatData <- AugmentSigMatrix(origMatrix, fullData, newData, gList)
 #'
 #' @param origMatrix  The original signature matrix
 #' @param fullData  The full data for the signature matrix
@@ -214,7 +215,12 @@ AugmentSigMatrix <- function(origMatrix, fullData, newData, gList, nGenes=1:100,
   newData <- newData[allGenes,]
 
   if(any(is.na(origMatrix))) {
-    origMatrix.imp <- t(missForest.par(t(origMatrix)))
+    if(imputeMissing == TRUE) {
+      origMatrix.imp <- t(missForest.par(t(origMatrix)))
+    } else {
+      remBool <- apply(origMatrix, 1, function(x){any(is.na(x))})
+      origMatrix.imp <- origMatrix[!remBool,]
+    }
   } else {
     origMatrix.imp <- origMatrix
   }
@@ -247,7 +253,13 @@ AugmentSigMatrix <- function(origMatrix, fullData, newData, gList, nGenes=1:100,
 
   #Impute the full matrix and back-calculate the kappa
   if(any(is.na(newMatrix))) {
-    impMatrix <- t(missForest.par(t(newMatrix)))
+    if(imputeMissing == TRUE) {
+      impMatrix <- t(missForest.par(t(newMatrix)))
+    } else {
+      remBool <- apply(newMatrix, 1, function(x){any(is.na(x))})
+      impMatrix <- newMatrix[!remBool,]
+    }
+    
   } else {
     impMatrix <- newMatrix
   }
@@ -259,7 +271,8 @@ AugmentSigMatrix <- function(origMatrix, fullData, newData, gList, nGenes=1:100,
   for (i in 1:length(selGenes)) {
     newGenes <- unlist(selGenes[1:i])
     newGenes <- newGenes[!is.na(newGenes)]
-    curMat <- impMatrix[c(rownames(origMatrix), newGenes),]
+    curMatGenes <- c(rownames(origMatrix), newGenes)
+    curMat <- impMatrix[curMatGenes[curMatGenes %in% rownames(impMatrix)],]
     cNums <- c(cNums, kappa(curMat))
     nGenes <- c(nGenes, nrow(curMat))
   }
@@ -295,6 +308,7 @@ AugmentSigMatrix <- function(origMatrix, fullData, newData, gList, nGenes=1:100,
     sigMatrix <- impMatrix[rownames(impMatrix) %in% c(rownames(origMatrix), newGenes),]
   } else {
     sigMatrix <- newMatrix[rownames(newMatrix) %in% c(rownames(origMatrix), newGenes),]
+    sigMatrix <- sigMatrix[apply(sigMatrix, 1, function(x){!any(is.na(x))}),]
   } #if(imputeMissing == TRUE) {
 
   if (postNorm==TRUE) {
@@ -316,9 +330,9 @@ AugmentSigMatrix <- function(origMatrix, fullData, newData, gList, nGenes=1:100,
   if(plotToPDF == TRUE) {
     pdfFile <- paste('AugmentSigMatrix', condTol, Sys.Date(), 'pdf', sep='.')
     pdfFile <- file.path(pdfDir, pdfFile)
-    if(!is.null(addTitle)) { pdfFile <- sub('\\.pdf$', paste0('.', addTitle, '.pdf'), pdfFile) }
-    if(imputeMissing) { pdfFile <- sub('\\.pdf', '.impute.pdf', pdfFile) }
-    if(postNorm) { pdfFile <- sub('\\.pdf', '.postNorm.pdf', pdfFile) }
+    if(!is.null(addTitle)) { pdfFile <- sub('.pdf$', paste0('.', addTitle, '.pdf'), pdfFile) }
+    if(imputeMissing) { pdfFile <- sub('.pdf', '.impute.pdf', pdfFile) }
+    if(postNorm) { pdfFile <- sub('.pdf', '.postNorm.pdf', pdfFile) }
     grDevices::pdf(pdfFile)
   }
 
@@ -394,7 +408,8 @@ AugmentSigMatrix <- function(origMatrix, fullData, newData, gList, nGenes=1:100,
   return(rv)
 }
 
-#' Use a t-test to rank to features for each cell type
+#' Rank genes for each cell type
+#' @description Use a t-test to rank to features for each cell type
 #'
 #' gList <- rankByT(geneExpr, qCut=0.3)
 #'
@@ -423,7 +438,7 @@ AugmentSigMatrix <- function(origMatrix, fullData, newData, gList, nGenes=1:100,
 #' fakeAllData <- cbind(fullLM22, as.data.frame(exprData)) 
 #' gList <- rankByT(geneExpr = fakeAllData, qCut=0.3, oneCore=TRUE, reqRatGT1=FALSE)
 rankByT <- function(geneExpr, qCut=0.3, oneCore=FALSE, secondPval=TRUE, remZinf=FALSE, reqRatGT1=FALSE) {
-  colnames(geneExpr) <- sub('\\.[0-9]+$', '', colnames(geneExpr)) #Strip any trailing numbers added by make.names()
+  colnames(geneExpr) <- sub(".[0-9]+$", '', colnames(geneExpr)) #Strip any trailing numbers added by make.names()
   cTypes <- unique(colnames(geneExpr))
 
   if(length(cTypes) > 2 & oneCore==FALSE) {
@@ -520,7 +535,8 @@ rankByT <- function(geneExpr, qCut=0.3, oneCore=FALSE, secondPval=TRUE, remZinf=
   return(gList)
 }
 
-#' Load the MGSM27 signature matrix
+#' Load MGSM27
+#' @description Load the MGSM27 signature matrix
 #'
 #' @export
 #' @return  The MGSM27 signature matrix from Identifying a High-risk Cellular Signature in the Multiple Myeloma Bone Marrow Microenvironment
@@ -531,7 +547,8 @@ loadMGSM27 <- function() {
   return(MGSM27)
 }
 
-#' Load a map of cell type names
+#' LM22 look up table
+#' @description Load a map of cell type names
 #'
 #' @export
 #' @return a map of cell types names
@@ -569,7 +586,8 @@ getLM22cells <- function() {
   return(mapTypes)
 }
 
-#' Load the LM22 xCell map
+#' LM22 to xCell LUT
+#' @description Load the LM22 xCell map
 #'
 #' @export
 #' @return A map between xCell cell type names and LM22 cell type names

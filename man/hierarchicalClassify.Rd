@@ -2,11 +2,11 @@
 % Please edit documentation in R/onlyDeconAlgorithms.R
 \name{hierarchicalClassify}
 \alias{hierarchicalClassify}
-\title{Build clusters based on n-pass spillover matrix}
+\title{Hierarchical Deconvolution}
 \usage{
 hierarchicalClassify(sigMatrix, geneExpr, toPred, hierarchData = NULL,
   pdfDir = tempdir(), oneCore = FALSE, nPasses = 100,
-  remZinf = TRUE)
+  remZinf = TRUE, method = "DCQ")
 }
 \arguments{
 \item{sigMatrix}{The deconvolution matrix, e.g. LM22 or MGSM27}
@@ -24,12 +24,14 @@ hierarchicalClassify(sigMatrix, geneExpr, toPred, hierarchData = NULL,
 \item{nPasses}{The maximum number of iterations for spillToConvergence (DEFAULT: 100)}
 
 \item{remZinf}{Set to TRUE to remove any ratio with zero or infinity when generating gList (DEFAULT: FALSE)}
+
+\item{method}{One of 'DCQ', 'SVMDECON', 'DeconRNASeq', 'proportionsInAdmixture', 'nnls' (DEFAULT: DCQ)}
 }
 \value{
 a matrix of cell counts
 }
 \description{
-Build clusters based on n-pass spillover matrix
+Deconvolve cell types based on clusters detected by an n-pass spillover matrix
 }
 \examples{
 #This toy example 
@@ -38,5 +40,5 @@ fullLM22 <- ADAPTS::LM22[1:30, 1:4]
 smallLM22 <- fullLM22[1:25,] 
 
 cellCounts <- hierarchicalClassify(sigMatrix=smallLM22, geneExpr=fullLM22, toPred=fullLM22, 
-    oneCore=TRUE, nPasses=10)
+    oneCore=TRUE, nPasses=10, method='DCQ')
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/onlyDeconAlgorithms.R
 \name{estCellPercent.spillOver}
 \alias{estCellPercent.spillOver}
-\title{Use a spillover matrix to deconvolve a samples}
+\title{Estimate cell percentage from spillover}
 \usage{
 estCellPercent.spillOver(spillExpr, refExpr, geneExpr, method = "DCQ",
   ...)
@@ -14,7 +14,7 @@ estCellPercent.spillOver(spillExpr, refExpr, geneExpr, method = "DCQ",
 
 \item{geneExpr}{a data frame representing RNA-seq or microarray gene-expression profiles of a given complex tissue. Each row represents an expression of a gene, and each column represents a different experimental sample. colnames contain the name of each sample and rownames includes the genes' symbol. The name of each individual sample and the symbol of each gene should be unique. Any gene with missing expression values should be excluded.}
 
-\item{method}{One of 'DCQ', 'SVMDECON', 'DeconRNASeq', 'proportionsInAdmixture' (DEFAULT: DCQ)}
+\item{method}{One of 'DCQ', 'SVMDECON', 'DeconRNASeq', 'proportionsInAdmixture', 'nnls' (DEFAULT: DCQ)}
 
 \item{...}{Parameters for estCellPercent.X (e.g. number_of_repeats for .DCQ)}
 }
