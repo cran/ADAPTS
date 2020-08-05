@@ -4,9 +4,17 @@
 \alias{remakeLM22p}
 \title{Make an Augmented Signature Matrix}
 \usage{
-remakeLM22p(exprData, fullLM22, smallLM22 = NULL, plotToPDF = TRUE,
-  condTol = 1.01, postNorm = TRUE, autoDetectMin = FALSE,
-  pdfDir = tempdir(), oneCore = FALSE)
+remakeLM22p(
+  exprData,
+  fullLM22,
+  smallLM22 = NULL,
+  plotToPDF = TRUE,
+  condTol = 1.01,
+  postNorm = TRUE,
+  autoDetectMin = FALSE,
+  pdfDir = tempdir(),
+  oneCore = FALSE
+)
 }
 \arguments{
 \item{exprData}{The gene express data to use to augment LM22, e.g. ADAPTSdata::addMGSM27}

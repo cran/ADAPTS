@@ -4,10 +4,22 @@
 \alias{AugmentSigMatrix}
 \title{Make an augmented signature matrix}
 \usage{
-AugmentSigMatrix(origMatrix, fullData, newData, gList, nGenes = 1:100,
-  plotToPDF = TRUE, imputeMissing = TRUE, condTol = 1.01,
-  postNorm = FALSE, minSumToRem = NA, addTitle = NULL,
-  autoDetectMin = FALSE, calcSpillOver = FALSE, pdfDir = tempdir())
+AugmentSigMatrix(
+  origMatrix,
+  fullData,
+  newData,
+  gList,
+  nGenes = 1:100,
+  plotToPDF = TRUE,
+  imputeMissing = TRUE,
+  condTol = 1.01,
+  postNorm = FALSE,
+  minSumToRem = NA,
+  addTitle = NULL,
+  autoDetectMin = FALSE,
+  calcSpillOver = FALSE,
+  pdfDir = tempdir()
+)
 }
 \arguments{
 \item{origMatrix}{The original signature matrix}
