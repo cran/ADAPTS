@@ -1085,51 +1085,7 @@ getF1mcc <- function(estimate=NULL, reference=NULL, tps=NULL, fps=NULL, tns=NULL
   return(c(sensitivity=sensitivity, specificity=specificity, fpr=fpr, fdr=fdr, f1=f1, agreement=agreement, p.value=p.value, mcc=mcc, mcc.p=mcc.p))
 }
 
-#' Build a deconvolution seed matrix
-#' @description Use ranger to select features and build a genesInSeed gene matrix
-#'
-#' @param trainSet  Each row is a gene, and each column is an example of a particular cell type, ie from single cell data 
-#' @param genesInSeed  The maximum number of genes in the returned seed matrix (DEFAULT: 200)
-#' @param groupSize  The number of groups to break the trainSet into by ADAPTS::scSample (DEFAULT: 30)
-#' @param randomize  Set to TRUE randomize the sets selected by ADAPTS::scSample (DEFAULT: TRUE)
-#' @param num.trees  The number of trees to be used by ranger (DEFAULT: 1000)
-#' @param plotIt  Set to TRUE to plot (DEFAULT: FALSE)
-#' @param trainSet.3sam  Optional pre-calculated ADAPTS::scSample(trainSet, groupSize = 3) (DEFAULT: NULL)
-#' @param trainSet.30sam  Optional pre-calculated ADAPTS::scSample(trainSet, groupSize=groupSize, randomize=randomize) (DEFAULT: NULL)
-#'
-#' @export
-#' @return A list with condition numbers and gene lists
-#' @examples
-#' library(ADAPTS)
-#' ct1 <- runif(1000, 0, 100)
-#' ct2 <- runif(1000, 0, 100)
-#' dataMat <- cbind(ct1, ct1, ct1, ct1, ct1, ct1, ct2, ct2, ct2, ct2)
-#' rownames(dataMat) <- make.names(rep('gene', nrow(dataMat)), unique=TRUE)
-#' noise <- matrix(runif(nrow(dataMat)*ncol(dataMat), -2, 2), nrow = nrow(dataMat), byrow = TRUE)
-#' dataMat <- dataMat + noise
-#' newSigMat <- buildSeed(trainSet=dataMat)
-#' 
-buildSeed <- function(trainSet, genesInSeed=200, groupSize=30, randomize=TRUE, num.trees=1000, plotIt=FALSE, trainSet.3sam=NULL, trainSet.30sam=NULL) {
-  if(is.null(trainSet.3sam)) {trainSet.3sam <- ADAPTS::scSample(RNAcounts = trainSet, groupSize = 3, randomize = randomize)}
-  if(is.null(trainSet.30sam)) {trainSet.30sam <- ADAPTS::scSample(RNAcounts = trainSet, groupSize = groupSize, randomize = randomize)}
-  
-  clusterIDs <- factor(colnames(trainSet.30sam))
-  trainSet.4reg <- t(trainSet.30sam)
-  
-  rf1 <- ranger::ranger(x=trainSet.4reg, y=clusterIDs, num.trees=num.trees, importance='impurity')
-  imp <- ranger::importance(rf1)
-  imp <- sort(imp[imp>0], decreasing = TRUE)
-  
-  
-  topGenes <- names(imp)[1:min(genesInSeed, length(imp))]
-  #topGenes[!topGenes %in% rownames(trainSet.3sam)]
-  
-  seedMat <- trainSet.3sam[rownames(trainSet.3sam) %in% topGenes,]
-  cellTypes <- sub('\\.[0-9]+$', '', colnames(seedMat))
-  seedMat <- t(apply(seedMat, 1, function(x){tapply(x, cellTypes, mean, na.rm=TRUE)}))
-  if(plotIt==TRUE) { pheatmap::pheatmap(seedMat, main='Marker Gene Matrix, train, log2(x+1)') }
-  return(seedMat)
-}
+
 
 #' Build a gList using random forest
 #' @description Use ranger to select features and build a genesInSeed gene matrix

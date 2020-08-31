@@ -223,7 +223,7 @@ clustWspillOver <- function(sigMatrix, geneExpr, nPasses=100, deconMatrices=NULL
       #Note:  Why is it imputing later if I've removed all of these??? I need to fix the NA problem better.
     } #if(is.null(deconMatrices)) {
     
-    deconMatrices <- spillToConvergence(sigMatrix=sigMatrix, geneExpr=curGeneExpr, nPasses=nPasses, method=method)
+    deconMatrices <- spillToConvergence(sigMatrix=sigMatrix, geneExpr=curGeneExpr,plotIt=FALSE, nPasses=nPasses, method=method)
   }
   curExpr <- estCellCounts.nPass(geneExpr=sigMatrix, deconMatrices=deconMatrices, method=method)
   
@@ -599,6 +599,11 @@ estCellPercent.svmdecon <- function(refExpr,  geneExpr, marker_set=NULL, useOldV
 #' 
 #' cellEst <- estCellPercent.DeconRNASeq(refExpr=smallLM22, geneExpr=fullLM22)
 estCellPercent.DeconRNASeq <- function(refExpr,  geneExpr, marker_set=NULL) {
+  if(!requireNamespace('DeconRNASeq')) {
+    message('estCellPercent.DeconRNASeq requires DeconRNASeq')
+    message('https://www.bioconductor.org/packages/release/bioc/html/DeconRNASeq.html')
+    stop('DeconRNASeq not installed')
+  }
   if(is.null(marker_set)) {marker_set <- data.frame(marker_set=rownames(refExpr))}
   if(ncol(geneExpr)==1) {geneExpr <- cbind(geneExpr, geneExpr)}
   
