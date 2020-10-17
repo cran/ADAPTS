@@ -314,6 +314,7 @@ findConvergenceIter <- function(curSeq, changePer=1, winSize=5) {
 #' 
 #' @param allResList A list of results generated from all the iterative calls of testAllSigMatrices
 #' @param changePer  The maximum percentage of change allowed for convergence
+#' @export
 #'
 #' @return The mean and standard deviation of all the results, along with the number of iterations needed for the results to converge.
 
