@@ -592,24 +592,31 @@ estCellPercent.svmdecon <- function(refExpr,  geneExpr, marker_set=NULL, useOldV
 #' @export
 #' @return A matrix with cell type estimates for each samples
 #' @examples
-#' #This toy example 
+#' \donttest{
+#' #This toy example, donttest due to performance issues in windows development build 
 #' library(ADAPTS)
 #' fullLM22 <- ADAPTS::LM22[1:30, 1:4]
 #' smallLM22 <- fullLM22[1:25,] 
 #' 
 #' cellEst <- estCellPercent.DeconRNASeq(refExpr=smallLM22, geneExpr=fullLM22)
+#' }
 estCellPercent.DeconRNASeq <- function(refExpr,  geneExpr, marker_set=NULL) {
-  if(!requireNamespace('DeconRNASeq')) {
+  if(!'DeconRNASeq' %in% rownames(utils::installed.packages()) | !exists('DeconRNASeq')) {
     message('estCellPercent.DeconRNASeq requires DeconRNASeq')
     message('https://www.bioconductor.org/packages/release/bioc/html/DeconRNASeq.html')
-    stop('DeconRNASeq not installed')
+    message('Run library(DeconRNASeq) after installation')
+    return(NULL)
   }
+  
+  if(!exists('DeconRNASeq')) {
+    DeconRNASeq <- function(datasets = NULL, signatures=NULL) { stop('DeconRNASeq not loaded') }
+  }
+  
   if(is.null(marker_set)) {marker_set <- data.frame(marker_set=rownames(refExpr))}
   if(ncol(geneExpr)==1) {geneExpr <- cbind(geneExpr, geneExpr)}
   
   pca <- pcaMethods::pca  #Something has clobbered PCA
-  # clobbered again
-  curDecon <- try(DeconRNASeq::DeconRNASeq(datasets=as.data.frame(geneExpr), signatures=refExpr))
+  curDecon <- try(DeconRNASeq(datasets=as.data.frame(geneExpr), signatures=refExpr))
   if(inherits(curDecon, 'try-error')) {
     message('Please update all packages called by DeconRNASeq')
     return(NULL)
@@ -637,13 +644,26 @@ estCellPercent.DeconRNASeq <- function(refExpr,  geneExpr, marker_set=NULL) {
 #' @export
 #' @return A matrix with cell type estimates for each samples
 #' @examples
+#' \donttest{
 #' #This toy example 
 #' library(ADAPTS)
 #' fullLM22 <- ADAPTS::LM22[1:30, 1:4]
 #' smallLM22 <- fullLM22[1:25,] 
 #' 
 #' cellEst <- estCellPercent.proportionsInAdmixture(refExpr=smallLM22, geneExpr=fullLM22)
+#' }
 estCellPercent.proportionsInAdmixture <- function(refExpr,  geneExpr, marker_set=NULL) {
+  if(!'WGCNA' %in% rownames(utils::installed.packages()) | !exists('proportionsInAdmixture')) {
+    message('WGCNA required for proportionsInAdmixture deconvolution')
+    message('https://cran.r-project.org/web/packages/WGCNA/')
+    message('Run library(WGCNA) after installation')
+    return(NULL)
+  }
+  
+  if(!exists('proportionsInAdmixture')) {
+    proportionsInAdmixture <- function(MarkerMeansPure = NULL, datE.Admixture=NULL) { stop('proportionsInAdmixture not loaded') }
+  }
+  
   if(is.null(marker_set)) {marker_set <- data.frame(marker_set=rownames(refExpr))}
   if(ncol(geneExpr)==1) {geneExpr <- cbind(geneExpr, geneExpr)}
   
@@ -661,7 +681,9 @@ estCellPercent.proportionsInAdmixture <- function(refExpr,  geneExpr, marker_set
   # function proportionsInAdmixture takes in a data frame whose first column reports the gene names and remaining columns report
   # the gene expression in specific cell types, and a data frame whose rows represent each sample and columns represent the gene expression.
   # proportionInAdmixture returns a list where rows are samples and columns are cell types
-  proportionList <- WGCNA::proportionsInAdmixture(MarkerMeansPure = refExprDF, datE.Admixture = geneExprDF)["PredictedProportions"]
+  proportionList <- try(proportionsInAdmixture(MarkerMeansPure = refExprDF, datE.Admixture = geneExprDF))
+  if(inherits(proportionList, 'try-error')) { message('proportionsInAdmixture failed'); return(NULL); }
+  proportionList <- proportionList["PredictedProportions"]
   proportionMatrix <- t(matrix(unlist(proportionList), ncol = ncol(refExprMatrix), byrow = FALSE))
   
   cellCountsPercent <- round(proportionMatrix * 100, 2)
@@ -955,10 +977,14 @@ collapseCellTypes <- function(cellCounts, method='Pheno4') {
 }
 #' Wrapper for deconvolution methods
 #' @description A wrapper function to call any of the estCellPercent functions
+#'    Modified on June 16th 2021 to quantile normalize the geneExpr data to match refExpr
+#'    Set preNormalize to FALSE for previous behavior.
 #'
 #' @param refExpr  a data frame representing immune cell expression profiles. Each row represents an expression of a gene, and each column represents a different immune cell type. colnames contains the name of each immune cell type and the rownames includes the genes' symbol. The names of each immune cell type and the symbol of each gene should be unique. Any gene with missing expression values must be excluded.
 #' @param geneExpr  a data frame representing RNA-seq or microarray gene-expression profiles of a given complex tissue. Each row represents an expression of a gene, and each column represents a different experimental sample. colnames contain the name of each sample and rownames includes the genes' symbol. The name of each individual sample and the symbol of each gene should be unique. Any gene with missing expression values should be excluded.
 #' @param method  One of 'DCQ', 'SVMDECON', 'DeconRNASeq', 'proportionsInAdmixture', 'nnls' (DEFAULT: DCQ)
+#' @param preNormalize  Set to TRUE to quantile normalize geneExpr to match refExpr (DEFAULT: TRUE)
+#' @param verbose  Set to TRUE to echo the results of parameters (DEFAULT: TRUE)
 #' @param ...  Parameters for estCellPercent.X (e.g. number_of_repeats for .DCQ)
 #' @export
 #' @return A matrix with cell type estimates for each samples
@@ -968,9 +994,19 @@ collapseCellTypes <- function(cellCounts, method='Pheno4') {
 #' fullLM22 <- ADAPTS::LM22[1:30, 1:4]
 #' smallLM22 <- fullLM22[1:25,] 
 #' 
-#' cellEst <- estCellPercent(refExpr=smallLM22, geneExpr=fullLM22)
+#' cellEst <- estCellPercent(refExpr=smallLM22, geneExpr=fullLM22, preNormalize=FALSE, verbose=TRUE)
 #' 
-estCellPercent <- function(refExpr, geneExpr, method='DCQ', ...) {
+estCellPercent <- function(refExpr, geneExpr, preNormalize=TRUE, verbose=TRUE, method='DCQ', ...) {
+  if (preNormalize == TRUE) {
+    if(verbose==TRUE) {message('Quantile Normalizing geneExpr to match refExpr')}
+    rns <- rownames(geneExpr)
+    cns <- colnames(geneExpr)
+    geneExpr <- preprocessCore::normalize.quantiles.use.target(as.matrix(geneExpr), as.numeric(as.matrix(refExpr)))
+    rownames(geneExpr) <- rns
+    colnames(geneExpr) <- cns
+  }
+  
+  if(verbose==TRUE) {message(paste('Setting method to:', method))}
   if(method == 'DCQ') {
     cellEst <- estCellPercent.DCQ(refExpr = refExpr, geneExpr=geneExpr, ...)
   } else if (method == 'SVMDECON') {

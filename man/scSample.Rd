@@ -8,7 +8,8 @@ scSample(
   RNAcounts,
   cellIDs = colnames(RNAcounts),
   groupSize = 3,
-  randomize = TRUE
+  randomize = TRUE,
+  mc.cores = 1
 )
 }
 \arguments{
@@ -19,6 +20,8 @@ scSample(
 \item{groupSize}{The number of sets to break it up into (DEFAULT: 3)}
 
 \item{randomize}{Set to TRUE to randomize the sets (DEFAULT: TRUE)}
+
+\item{mc.cores}{The number of cores to use (DEFAULT: 1)}
 }
 \value{
 a list with a multiple sets

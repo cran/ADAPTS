@@ -10,7 +10,12 @@ testAllSigMatrices(
   skipShrink = FALSE,
   proportional = FALSE,
   handMetaCluster = NULL,
-  testOnHalf = TRUE
+  testOnHalf = TRUE,
+  condTol = 1.01,
+  numChunks = 100,
+  plotIt = TRUE,
+  fastStop = TRUE,
+  singleCore = TRUE
 )
 }
 \arguments{
@@ -26,6 +31,16 @@ testAllSigMatrices(
 into same cluster using clustWspillOver.(DEFAULT: NULL)}
 
 \item{testOnHalf}{Set to TRUE to leave half the data as a test set}
+
+\item{condTol}{The tolerance in the reconstruction algorithm.  1.0 = no tolerance, 1.05 = 5\% tolerance (DEFAULT: 1.01)}
+
+\item{numChunks}{The number of groups of genes to remove while shrinking (DEFAULT: NULL, i.e. 1)}
+
+\item{plotIt}{Set to FALSE to suppress plots (DEFAULT: TRUE)}
+
+\item{fastStop}{Halt early when the condition number changes by less than 1 for 3 iterations (DEFAULT: TRUE)}
+
+\item{singleCore}{TRUE for a single core (DEFAULT: TRUE)}
 }
 \value{
 A list of results including prediction accuracy and cell enrichment
@@ -53,5 +68,5 @@ metaList[[4]] <- c(unique(colnames(dataMat))[4:length(unique(colnames(dataMat)))
 #  This is a meta-function that calls other functions, 
 #  The execution speed is too slow for the CRAN automated check
 #testAllSigMatrices(exprData=dataMat, randomize = TRUE, skipShrink=FALSE, 
-#    proportional=FALSE, handMetaCluster=metaList,testOnHalf=TRUE)
+#    proportional=FALSE, handMetaCluster=metaList, testOnHalf=TRUE, numChunks=NULL)
 }

@@ -77,6 +77,11 @@ buildSeed <- function(trainSet, genesInSeed=200, groupSize=30, randomize=TRUE, n
 #' @param handMetaCluster A List of pre-defined meta clusters.Set to NULL to automatically group indistinguishable cells 
 #' into same cluster using clustWspillOver.(DEFAULT: NULL)
 #' @param testOnHalf Set to TRUE to leave half the data as a test set
+#' @param condTol  The tolerance in the reconstruction algorithm.  1.0 = no tolerance, 1.05 = 5\% tolerance (DEFAULT: 1.01)
+#' @param numChunks  The number of groups of genes to remove while shrinking (DEFAULT: NULL, i.e. 1)
+#' @param plotIt  Set to FALSE to suppress plots (DEFAULT: TRUE)
+#' @param fastStop  Halt early when the condition number changes by less than 1 for 3 iterations (DEFAULT: TRUE)
+#' @param singleCore  TRUE for a single core (DEFAULT: TRUE)
 #'
 #' @export
 #' @return A list of results including prediction accuracy and cell enrichment
@@ -100,9 +105,9 @@ buildSeed <- function(trainSet, genesInSeed=200, groupSize=30, randomize=TRUE, n
 #' #  This is a meta-function that calls other functions, 
 #' #  The execution speed is too slow for the CRAN automated check
 #' #testAllSigMatrices(exprData=dataMat, randomize = TRUE, skipShrink=FALSE, 
-#' #    proportional=FALSE, handMetaCluster=metaList,testOnHalf=TRUE)
+#' #    proportional=FALSE, handMetaCluster=metaList, testOnHalf=TRUE, numChunks=NULL)
     
-testAllSigMatrices <- function(exprData, randomize = TRUE, skipShrink=FALSE, proportional=FALSE,handMetaCluster=NULL,testOnHalf=TRUE) {
+testAllSigMatrices <- function(exprData, randomize = TRUE, skipShrink=FALSE, proportional=FALSE, handMetaCluster=NULL, testOnHalf=TRUE, condTol=1.01, numChunks=100, plotIt=TRUE, fastStop=TRUE, singleCore=TRUE) {
   
   if(randomize==TRUE) {set.seed(Sys.time())}
   resList <- list()
@@ -128,7 +133,7 @@ testAllSigMatrices <- function(exprData, randomize = TRUE, skipShrink=FALSE, pro
   
   #seed
   genesInSeed<-100
-  seedMat <- buildSeed(trainSet, genesInSeed=genesInSeed, groupSize=30, randomize=TRUE, num.trees=1000, plotIt=TRUE, trainSet.3sam=trainSet.3sam, trainSet.30sam=trainSet.30sam,proportional = proportional)
+  seedMat <- buildSeed(trainSet, genesInSeed=genesInSeed, groupSize=30, randomize=TRUE, num.trees=1000, plotIt=plotIt, trainSet.3sam=trainSet.3sam, trainSet.30sam=trainSet.30sam,proportional = proportional)
   resList[['matrix.seed']] <- seedMat
   
   estimates.onTest <- as.data.frame(ADAPTS::estCellPercent.DCQ(seedMat, pseudobulk.test))
@@ -154,10 +159,13 @@ testAllSigMatrices <- function(exprData, randomize = TRUE, skipShrink=FALSE, pro
   
   # Aug
   gList <- ADAPTS::gListFromRF(trainSet=trainSet.30sam)
+  resList[['gList']] <- gList
   
-  augTrain <- ADAPTS::AugmentSigMatrix(origMatrix = seedMat, fullData = trainSet.3sam, gList = gList, nGenes = 1:100, newData = trainSet.3sam, plotToPDF = FALSE, pdfDir = '.')
+  augTrain <- ADAPTS::AugmentSigMatrix(origMatrix = seedMat, fullData = trainSet.3sam, gList = gList, nGenes = 1:100, newData = trainSet.3sam, plotToPDF = FALSE, pdfDir = '.', condTol=condTol, plotIt=plotIt)
   
   resList[['matrix.aug']] <- augTrain
+  resList[['matrix.aug.bestGenes']] <- ADAPTS::matrixToGenelist(augTrain, gList)
+  
   
   estimates.augment <- as.data.frame(ADAPTS::estCellPercent.DCQ(augTrain, pseudobulk.test))
   colnames(estimates.augment) <- paste('Augmented Matrix')
@@ -168,15 +176,21 @@ testAllSigMatrices <- function(exprData, randomize = TRUE, skipShrink=FALSE, pro
   
   #shrink
   if(skipShrink == FALSE) {
-    augTrain.shrink <- ADAPTS::shrinkSigMatrix(sigMatrix=augTrain, numChunks=NULL, verbose=FALSE, plotIt = FALSE, aggressiveMin=TRUE,sigGenesList=NULL, fastStop=TRUE, singleCore=TRUE)
+    #augTrain.shrink <- ADAPTS::shrinkSigMatrix(sigMatrix=augTrain, numChunks=NULL, verbose=FALSE, plotIt = FALSE, aggressiveMin=TRUE,sigGenesList=NULL, fastStop=TRUE, singleCore=TRUE)
+    augTrain.shrink <- ADAPTS::shrinkSigMatrix(sigMatrix=augTrain, verbose=FALSE, plotIt = plotIt, aggressiveMin=TRUE, fastStop=fastStop, singleCore=singleCore, numChunks=numChunks)
     #pheatmap(augTrain.shrink)
     resList[['matrix.shrink']] <- augTrain.shrink
+    resList[['matrix.shrink.bestGenes']] <- ADAPTS::matrixToGenelist(augTrain.shrink, gList)
+    
     
     estimates.shrink <- as.data.frame(ADAPTS::estCellPercent.DCQ(augTrain.shrink, pseudobulk.test))
     colnames(estimates.shrink) <- paste('Shrunk Matrix')
     resList[['estimates.onTest']] <- estimates.onTest <- cbind(estimates.shrink, estimates.onTest)
     
-    resList[['testAcc.shrink']] <- seed2TestAcc<- ADAPTS::calcAcc(estimates=estimates.onTest[,1], reference=estimates.onTest[,ncol(estimates.onTest)])}
+    resList[['testAcc.shrink']] <- seed2TestAcc<- ADAPTS::calcAcc(estimates=estimates.onTest[,1], reference=estimates.onTest[,ncol(estimates.onTest)])
+  } else {
+    augTrain.shrink <- augTrain  #Used for later clustering
+  }
   
   
   #Clustering
@@ -223,7 +237,7 @@ testAllSigMatrices <- function(exprData, randomize = TRUE, skipShrink=FALSE, pro
   
   #Metaseed
   genesInSeed<-100
-  metaseedMat <-buildSeed(metatrainSet, genesInSeed=genesInSeed, groupSize=30, randomize=TRUE, num.trees=1000, plotIt=FALSE, trainSet.3sam=metatrainSet.3sam, trainSet.30sam=metatrainSet.30sam,proportional = proportional)
+  metaseedMat <-buildSeed(metatrainSet, genesInSeed=genesInSeed, groupSize=30, randomize=TRUE, num.trees=1000, plotIt=plotIt, trainSet.3sam=metatrainSet.3sam, trainSet.30sam=metatrainSet.30sam,proportional = proportional)
   
   resList[['matrix.metaSeed']] <- metaseedMat
   
@@ -248,11 +262,14 @@ testAllSigMatrices <- function(exprData, randomize = TRUE, skipShrink=FALSE, pro
   
   #meta aug
   metagList <- ADAPTS::gListFromRF(trainSet=metatrainSet.30sam)
+  resList[['gList.meta']] <- metagList
   sapply(gList,dim)
   
-  meta.augTrain <- ADAPTS::AugmentSigMatrix(origMatrix = metaseedMat, fullData = metatrainSet.3sam, gList = metagList, nGenes = 1:100, newData = metatrainSet.3sam, plotToPDF = FALSE, pdfDir = '.')
+  meta.augTrain <- ADAPTS::AugmentSigMatrix(origMatrix = metaseedMat, fullData = metatrainSet.3sam, gList = metagList, nGenes = 1:100, newData = metatrainSet.3sam, plotToPDF = FALSE, pdfDir = '.', condTol = condTol, plotIt=plotIt)
   
   resList[['matrix.metaAug']] <- meta.augTrain
+  resList[['matrix.metaAug.bestGenes']] <- ADAPTS::matrixToGenelist(meta.augTrain, metagList)
+  
   
   estimates.Meta.augment <- as.data.frame(ADAPTS::estCellPercent.DCQ(meta.augTrain, metapseudobulk.test))
   colnames(estimates.Meta.augment) <- paste('Augmented Meta')
@@ -263,17 +280,18 @@ testAllSigMatrices <- function(exprData, randomize = TRUE, skipShrink=FALSE, pro
   #meta shrink
   if(skipShrink == FALSE) {
     gc()
-    meta.augTrain.shrink <- ADAPTS::shrinkSigMatrix(sigMatrix=meta.augTrain, numChunks=NULL, verbose=FALSE, plotIt = FALSE, aggressiveMin=TRUE, sigGenesList=NULL,fastStop=TRUE, singleCore=TRUE)
+    #meta.augTrain.shrink <- ADAPTS::shrinkSigMatrix(sigMatrix=meta.augTrain, numChunks=NULL, verbose=FALSE, plotIt = FALSE, aggressiveMin=TRUE, sigGenesList=NULL,fastStop=TRUE, singleCore=TRUE)
+    meta.augTrain.shrink <- ADAPTS::shrinkSigMatrix(sigMatrix=meta.augTrain, verbose=FALSE, plotIt = plotIt, aggressiveMin=TRUE, fastStop=fastStop, singleCore=singleCore, numChunks=numChunks)
     dim(meta.augTrain.shrink)
     #pheatmap(augTrain.shrink)
     resList[['matrix.metaAugShrink']] <- meta.augTrain.shrink
+    resList[['matrix.metaAugShrink.bestGenes']] <- ADAPTS::matrixToGenelist(meta.augTrain.shrink, metagList)
     
     estimates.Meta.shrink <- as.data.frame(ADAPTS::estCellPercent.DCQ(meta.augTrain.shrink, metapseudobulk.test))
     colnames(estimates.Meta.shrink) <- paste('Shrunk Meta')
     resList[['estimates.onTest.meta']] <- estimates.Meta.onTest <- cbind(estimates.Meta.shrink, estimates.Meta.onTest)
     
     resList[['testAcc.metaAugShrink']] <- seed2TestAcc.shrink.meta <- ADAPTS::calcAcc(estimates=estimates.Meta.onTest[,1], reference=estimates.Meta.onTest[,ncol(estimates.Meta.onTest)])
-    
   }
   
   return(resList)
@@ -317,11 +335,18 @@ findConvergenceIter <- function(curSeq, changePer=1, winSize=5) {
 #' @export
 #'
 #' @return The mean and standard deviation of all the results, along with the number of iterations needed for the results to converge.
-
-
+#' A meta analysis for the results from multiple iterations
+#' @description Calculate the mean and the standard deviation of the results from all the iterations, and also 
+#' test for convergence by % of change with each additional iteration.
+#' 
+#' @param allResList A list of results generated from all the iterative calls of testAllSigMatrices
+#' @param changePer  The maximum percentage of change allowed for convergence
+#' @export
+#'
+#' @return The mean and standard deviation of all the results, along with the number of iterations needed for the results to converge.
 meanResults <- function (allResList,changePer=1) {
   testNames <- unique(sub('^.*\\.', '', names(allResList[[1]])))
-  testNames <- testNames[!testNames %in% c("onTest", "allClusters", "LUT", "meta")]
+  testNames <- testNames[!testNames %in% c("onTest", "allClusters", "LUT", "meta", "gList")]
   compTypes <- names(allResList[[1]][[paste0('testAcc.', testNames[1])]])
   
   allResList <- allResList[!sapply(allResList, function(x){inherits(x,'try-error')})]
@@ -344,6 +369,8 @@ meanResults <- function (allResList,changePer=1) {
   convMat <- matrix(as.numeric(NA), nrow=length(testNames), ncol=length(compTypes),
                     dimnames=list(testNames, compTypes))
   for (curName in testNames) {
+    if(is.null(compList[[curName]][[compTypes[1]]][[1]])) { message(paste('Omitting', curName, 'due to NULL results')) ; next; }
+    
     for (curComp in compTypes) {
       curMean <- mean(compList[[curName]][[curComp]], na.rm = TRUE)
       curSD <- stats::sd(compList[[curName]][[curComp]], na.rm = TRUE)
@@ -361,10 +388,11 @@ meanResults <- function (allResList,changePer=1) {
   resMat$N <- length(allResList)
   resMat <- cbind(resMat, as.data.frame(convMat))
   
+  remBool <- apply(resMat, 1, function(x){all(is.na(x))})
+  resMat <- resMat[!remBool,]
+  
   return(resMat)
 }
-
-
 
 
 #' Loop testAllSigMatrices until convergence
@@ -377,10 +405,7 @@ meanResults <- function (allResList,changePer=1) {
 #' @param handMetaCluster A List of pre-defined meta clusters. Set to NULL to automatically group indistinguishable 
 #' cells into same cluster use clustWspillOver (DEFAULT: NULL)
 #' @param testOnHalf Set to TRUE to leave half the data as a test set to validate all the matrices
-#'
-#' @return  A list of results generated from all the iterative calls of testAllSigMatrices
-#' @export
-#'
+#' @param condTol  The tolerance in the reconstruction algorithm.  1.0 = no tolerance, 1.05 = 5\% tolerance (DEFAULT: 1.01)
 #'
 #' @return  A list of results generated from all the iterative calls of testAllSigMatrices
 #' @export
@@ -399,7 +424,7 @@ meanResults <- function (allResList,changePer=1) {
 #' #  The execution speed is too slow for the CRAN automated check
 #' #loopTillConvergence(numLoops=10, fastStop=TRUE, exprData=dataMat, 
 #' #    changePer=10,handMetaCluster=NULL, testOnHalf=TRUE)
-loopTillConvergence<-function(numLoops,fastStop,exprData,changePer,handMetaCluster,testOnHalf){
+loopTillConvergence <- function(numLoops, fastStop, exprData, changePer, handMetaCluster, testOnHalf, condTol=1.01){
   if(is.null(numLoops)){
     fastStop<-TRUE
     numLoops<-1000000
@@ -407,7 +432,7 @@ loopTillConvergence<-function(numLoops,fastStop,exprData,changePer,handMetaClust
   allResListOut <- list()
   for (i in 1:numLoops) {
     curName <- paste0('res', i)
-    allResListOut[[curName]] <- try(testAllSigMatrices(exprData, randomize = TRUE, proportional=FALSE, handMetaCluster=handMetaCluster,testOnHalf=testOnHalf))
+    allResListOut[[curName]] <- try(testAllSigMatrices(exprData, randomize = TRUE, proportional=FALSE, handMetaCluster=handMetaCluster, testOnHalf=testOnHalf, condTol = condTol))
     if(fastStop==TRUE){
       covtmp<-meanResults(allResList=allResListOut,changePer)[ ,c("convIt.rho.cor", "convIt.spear.rho", "convIt.mae","convIt.rmse")]
       if(all(!is.na(covtmp))) break

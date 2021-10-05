@@ -2,7 +2,7 @@ Package: ADAPTS
 Type: Package
 Title: Automated Deconvolution Augmentation of Profiles for Tissue
         Specific Cells
-Version: 1.0.6
+Version: 1.0.21
 Author: Samuel A Danziger
 Maintainer: Samuel A Danziger <sam.danziger@gmail.com>
 Copyright: Bristol-Myers Squibb
@@ -12,14 +12,14 @@ Description: Tools to construct (or add to) cell-type signature matrices using f
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.1.1
+RoxygenNote: 7.1.2
 Depends: R (>= 3.3.0)
 biocViews:
-Imports: missForest, e1071, WGCNA, ComICS, pheatmap, doParallel,
+Imports: missForest, e1071, ComICS, pheatmap, doParallel, utils,
         quantmod, preprocessCore, pcaMethods, foreach, nnls, ranger
-Suggests: R.rsp, DeconRNASeq
+Suggests: R.rsp, DeconRNASeq, WGCNA
 VignetteBuilder: R.rsp
 NeedsCompilation: no
-Packaged: 2020-10-13 23:42:48 UTC; sdanziger
+Packaged: 2021-09-29 15:52:08 UTC; danziges
 Repository: CRAN
-Date/Publication: 2020-10-17 04:10:03 UTC
+Date/Publication: 2021-10-05 08:30:16 UTC

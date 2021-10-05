@@ -68,6 +68,7 @@ missForest.par <- function(dataMat, parallelize = "variables") {
 #' @param autoDetectMin Set to true to automatically detect the first local minima. GOOD PRELIMINARY RESULTS (DEAFULT: FALSE)
 #' @param pdfDir  A fold to write the pdf file to if plotToPDF=TRUE (DEFAULT: tempdir())
 #' @param oneCore Set to TRUE to disable parallelization (DEFAULT: FALSE)
+#' @param cache_gList Set to TRUE to cache slow gList calculations (DEFAULT: TRUE)
 #' @export
 #' @return a cell type signature matrix
 #' @examples
@@ -78,12 +79,12 @@ missForest.par <- function(dataMat, parallelize = "variables") {
 #' #Make a fake signature matrix out of 100 genes and the first 8 cell types
 #' smallLM22 <- fullLM22[1:100, 1:8] 
 #' 
-#' #Make fake data representing two replicates of purified Mast.cells 
+#' #Make fake data representing two replicates of purified Mast.cells types 
 #' exprData <- ADAPTS::LM22[1:200, c("Mast.cells.resting","Mast.cells.activated")]
 #' colnames(exprData) <- c("Mast.cells", "Mast.cells")
 #' newSig <- remakeLM22p(exprData=exprData, fullLM22=fullLM22, smallLM22=smallLM22, 
-#'     plotToPDF=FALSE, oneCore=TRUE)
-remakeLM22p <- function(exprData, fullLM22, smallLM22=NULL, plotToPDF=TRUE, condTol = 1.01, postNorm=TRUE, autoDetectMin = FALSE, pdfDir=tempdir(), oneCore=FALSE) {
+#'     plotToPDF=FALSE, oneCore=TRUE, cache_gList=FALSE)
+remakeLM22p <- function(exprData, fullLM22, smallLM22=NULL, plotToPDF=TRUE, condTol = 1.01, postNorm=TRUE, autoDetectMin = FALSE, pdfDir=tempdir(), oneCore=FALSE, cache_gList=TRUE) {
   exprData <- as.data.frame(exprData)
   
   if (is.null(smallLM22)) {
@@ -110,11 +111,11 @@ remakeLM22p <- function(exprData, fullLM22, smallLM22=NULL, plotToPDF=TRUE, cond
   fName <- paste0(strtrim(fName, 240),'.RData')  #Avoid too long filesnames, but introduct possible bug where two specs can generate the same file
   fName <- file.path(tempdir(), fName)
   
-  if(!file.exists(fName)) {
-    gList <- rankByT(geneExpr = geneExpr, qCut=0.3, oneCore=oneCore)
-    save(gList, file=fName)
-  } else {
+  if(file.exists(fName) & cache_gList == TRUE) {
     gList <- get(load(fName)[1])
+  } else {
+    gList <- rankByT(geneExpr = geneExpr, qCut=0.3, oneCore=oneCore)
+    if(cache_gList == TRUE) { save(gList, file=fName, compress = TRUE) }
   }
   
   #Normalize the new expression data against the full data?
@@ -145,6 +146,7 @@ remakeLM22p <- function(exprData, fullLM22, smallLM22=NULL, plotToPDF=TRUE, cond
 #' @param autoDetectMin Set to true to automatically detect the first local minima. GOOD PRELIMINARY RESULTS (DEAFULT: FALSE)
 #' @param calcSpillOver Use the training data to calculate a spillover matrix (DEFAULT: FALSE)
 #' @param pdfDir  A fold to write the pdf file to if plotToPDF=TRUE (DEFAULT: tempdir())
+#' @param plotIt  Set to FALSE to suppress non-PDF plotting (DEFAULT: TRUE)
 #' @export
 #' @return an augmented cell type signature matrix
 #' @examples
@@ -166,7 +168,7 @@ remakeLM22p <- function(exprData, fullLM22, smallLM22=NULL, plotToPDF=TRUE, cond
 #' 
 #' newSig <- AugmentSigMatrix(origMatrix=smallLM22, fullData=fullLM22, newData=exprData, 
 #'     gList=gList, plotToPDF=FALSE)
-AugmentSigMatrix <- function(origMatrix, fullData, newData, gList, nGenes=1:100, plotToPDF=TRUE, imputeMissing=TRUE, condTol=1.01, postNorm=FALSE, minSumToRem=NA, addTitle=NULL, autoDetectMin=FALSE, calcSpillOver=FALSE, pdfDir=tempdir()) {
+AugmentSigMatrix <- function(origMatrix, fullData, newData, gList, nGenes=1:100, plotToPDF=TRUE, imputeMissing=TRUE, condTol=1.01, postNorm=FALSE, minSumToRem=NA, addTitle=NULL, autoDetectMin=FALSE, calcSpillOver=FALSE, pdfDir=tempdir(), plotIt=TRUE) {
   origMatrix <- as.data.frame(origMatrix)
   if(autoDetectMin == TRUE) {
     if(!is.null(addTitle)) {
@@ -336,38 +338,40 @@ AugmentSigMatrix <- function(origMatrix, fullData, newData, gList, nGenes=1:100,
     grDevices::pdf(pdfFile)
   }
   
-  legText <- c('Unagumented Signature Matrix', 'Minimum Smoothed Condition Number', 'Best Augmented Signature Matrix')
-  pchs <- c('o', 'x', 'x')
-  cols <- c('red', 'purple', 'blue')
-  ylims <- c(min(cNums.orig,cNums,kappa(sigMatrix))*0.95, max(cNums.orig, cNums)*1.05)
-  graphics::plot(x=nGenes, y=cNums,
-                 xlab='Number of Genes', ylab='Condition Number (lower is more stable)',
-                 main=titleStr, ylim=ylims)
-  graphics::points(x=nrow(unAug), y=cNums.orig, col='red', pch='o', cex=1.5 )
-  graphics::lines(x=nGenes, y=smData, col='green')
-  graphics::points(x=nGenes[bestMin], y=cNums[bestMin], col='purple', pch='x', cex=1.5)
-  graphics::points(x=nGenes[smallMin], y=cNums[smallMin], col='blue', pch='x', cex=1.5)
-  if (postNorm==TRUE) {
-    legText <- c(legText, 'Post-Normalized')
-    pchs <- c(pchs, 'x')
-    cols <- c(cols, 'violetred')
-    graphics::points(x=nGenes[smallMin], y=kappa(sigMatrix), col='violetred', pch='x', cex=1.5)
-  }
-  graphics::legend('topright', legend=legText, pch=pchs, col=cols)
-  
-  origTitle <- 'Original Matrix'
-  if(!is.null(addTitle)) { origTitle <- paste(origTitle, titleStr) }
-  
-  pheatmap::pheatmap(origMatrix, main=origTitle, fontsize_row = 4)
-  pheatmap::pheatmap(sigMatrix, main=titleStr, fontsize_row = 4)
-  
-  if(!is.na(minSumToRem)) {
-    sigMatrix <- sigMatrix[rowSums(abs(sigMatrix)) > minSumToRem,]
-    titleStr <- paste('Augmenting Signature Matrix ( tol =', condTol, 'filter =', minSumToRem, ')\n# Cell-types:',
-                      ncol(unAug), '->', ncol(sigMatrix), '| # Genes:', nrow(unAug), '->', nrow(sigMatrix))
-    if(!is.null(addTitle)) { titleStr <- paste(addTitle, titleStr) }
+  if(plotIt == TRUE) {
+    legText <- c('Unagumented Signature Matrix', 'Minimum Smoothed Condition Number', 'Best Augmented Signature Matrix')
+    pchs <- c('o', 'x', 'x')
+    cols <- c('red', 'purple', 'blue')
+    ylims <- c(min(cNums.orig,cNums,kappa(sigMatrix))*0.95, max(cNums.orig, cNums)*1.05)
+    graphics::plot(x=nGenes, y=cNums,
+                   xlab='Number of Genes', ylab='Condition Number (lower is more stable)',
+                   main=titleStr, ylim=ylims)
+    graphics::points(x=nrow(unAug), y=cNums.orig, col='red', pch='o', cex=1.5 )
+    graphics::lines(x=nGenes, y=smData, col='green')
+    graphics::points(x=nGenes[bestMin], y=cNums[bestMin], col='purple', pch='x', cex=1.5)
+    graphics::points(x=nGenes[smallMin], y=cNums[smallMin], col='blue', pch='x', cex=1.5)
+    if (postNorm==TRUE) {
+      legText <- c(legText, 'Post-Normalized')
+      pchs <- c(pchs, 'x')
+      cols <- c(cols, 'violetred')
+      graphics::points(x=nGenes[smallMin], y=kappa(sigMatrix), col='violetred', pch='x', cex=1.5)
+    }
+    graphics::legend('topright', legend=legText, pch=pchs, col=cols)
+    
+    origTitle <- 'Original Matrix'
+    if(!is.null(addTitle)) { origTitle <- paste(origTitle, titleStr) }
+    
+    pheatmap::pheatmap(origMatrix, main=origTitle, fontsize_row = 4)
     pheatmap::pheatmap(sigMatrix, main=titleStr, fontsize_row = 4)
-  }
+    
+    if(!is.na(minSumToRem)) {
+      sigMatrix <- sigMatrix[rowSums(abs(sigMatrix)) > minSumToRem,]
+      titleStr <- paste('Augmenting Signature Matrix ( tol =', condTol, 'filter =', minSumToRem, ')\n# Cell-types:',
+                        ncol(unAug), '->', ncol(sigMatrix), '| # Genes:', nrow(unAug), '->', nrow(sigMatrix))
+      if(!is.null(addTitle)) { titleStr <- paste(addTitle, titleStr) }
+      pheatmap::pheatmap(sigMatrix, main=titleStr, fontsize_row = 4)
+    }
+  } #if(plotIt = TRUE) {
   
   if(plotToPDF == TRUE) {
     grDevices::dev.off()
@@ -937,11 +941,12 @@ splitSCdata <- function(RNAcounts, cellIDs=colnames(RNAcounts), numSets=3, verbo
 #' @description  This function is intended to collapse many single cells into 3 (groupsize) groups
 #' with the average count across all cells in each of the groups.  These groups can then be used to perform a 
 #' t-test (for example) between the 3 groups of CellX with 3 groups of CellY
-#'
+#' 
 #' @param RNAcounts  The single cell matrix
 #' @param cellIDs  A vector will cell types for each column in scCountMatrix (DEFAULT: colnames(RNAcounts))
 #' @param groupSize  The number of sets to break it up into (DEFAULT: 3)
 #' @param randomize  Set to TRUE to randomize the sets (DEFAULT: TRUE)
+#' @param mc.cores  The number of cores to use (DEFAULT: 1)
 #'
 #' @export
 #' @return a list with a multiple sets
@@ -955,10 +960,11 @@ splitSCdata <- function(RNAcounts, cellIDs=colnames(RNAcounts), numSets=3, verbo
 #' RNAcounts[, grepl('CellB', colnames(RNAcounts))] <- 3
 #' scSample(RNAcounts, groupSize=3)
 #' 
-scSample <- function(RNAcounts, cellIDs=colnames(RNAcounts), groupSize=3, randomize=TRUE) {
+scSample <- function(RNAcounts, cellIDs=colnames(RNAcounts), groupSize=3, randomize=TRUE, mc.cores=1) {
   cellTypes <- unique(sub('\\.[0-9]+$', '', as.character(cellIDs)))
-  combCellList <- list()
-  for (cellType in cellTypes) {
+  #combCellList <- list()
+  #for (cellType in cellTypes) {
+  combCellList <- parallel::mclapply(cellTypes, mc.cores=mc.cores, function(cellType) {
     matchStr <- sub("+",'\\+',paste0(cellType,'\\.*[0-9]*$'), fixed=TRUE)
     idxs <- grep(matchStr, cellIDs)
     if(randomize==TRUE) {idxs <- sample(x=idxs, length(idxs))}
@@ -977,7 +983,7 @@ scSample <- function(RNAcounts, cellIDs=colnames(RNAcounts), groupSize=3, random
       })
       curData <- do.call(cbind, curData.list)
       colnames(curData) <- rep(cellType, ncol(curData))
-      combCellList[[cellType]] <- curData
+      #combCellList[[cellType]] <- curData
     } else {
       curData <- RNAcounts[,idxs,drop=FALSE]
       if(length(idxs) == 1) {
@@ -986,9 +992,10 @@ scSample <- function(RNAcounts, cellIDs=colnames(RNAcounts), groupSize=3, random
         #colnames(curData) <- 1:length(idxs)#paste(cellType, 1:length(idxs), sep='.')
         colnames(curData) <-  rep(cellType, ncol(curData))
       }
-      combCellList[[cellType]] <- curData
+      #combCellList[[cellType]] <- curData
     }
-  } #for (cellType in cellTypes) {
+    curData
+  } ) #for (cellType in cellTypes) {
   
   #Now convert it to a data.frame
   combDF <- do.call(cbind, combCellList)
@@ -1130,6 +1137,59 @@ gListFromRF <- function(trainSet, oneCore=FALSE) {
   } #if(oneCore==TRUE) {
   names(gList.fromRF) <- clusterNames
   return(gList.fromRF)
+}
+
+#' Make a GSVA genelist
+#' @description Provide a gList and signature matrix with matched cell types to get signatures
+#'   gene lists for GSVA and similar algorithms.
+#'   gList=NULL select highest genes for each cell type, minimum of 3.
+#'
+#' @param sigMat  A signature matrix such as from ADAPTS::AugmentSigMatrix()
+#' @param gList  A list of prioritized genes such as from ADAPTS::gListFromRF() (DEFAULT:NULL)
+#'
+#' @export
+#' @return A list of genes for each cell types musually in sigMat and gList
+#' @examples
+#' library(ADAPTS)
+#' ct1 <- runif(1000, 0, 100)
+#' ct2 <- runif(1000, 0, 100)
+#' dataMat <- cbind(ct1, ct1, ct1, ct1, ct1, ct1, ct2, ct2, ct2, ct2)
+#' rownames(dataMat) <- make.names(rep('gene', nrow(dataMat)), unique=TRUE)
+#' noise <- matrix(runif(nrow(dataMat)*ncol(dataMat), -2, 2), nrow = nrow(dataMat), byrow = TRUE)
+#' dataMat <- dataMat + noise
+#' gList <- ADAPTS::gListFromRF(trainSet=dataMat, oneCore=TRUE)
+#' newSigMat <- ADAPTS::buildSeed(trainSet=dataMat, plotIt=FALSE)
+#' geneLists <- matrixToGenelist(sigMat=newSigMat, gList=gList)
+#' 
+matrixToGenelist <- function(sigMat, gList=NULL) {
+  geneLists <- list() #The output variable
+  
+  if(is.null(gList)) {
+    bestCols <- apply(sigMat, 1, which.max)
+    for (curName in colnames(sigMat)) {
+      seedGenes <- names(tail(sort(sigMat[, curName]),3))
+      bestGenes <- names(bestCols)[bestCols == which(colnames(sigMat)==curName)]
+      allGenes <- unique(c(seedGenes, bestGenes))
+      rats <- sapply(allGenes, function(x){ sigMat[x,curName] / sum(sigMat[x,colnames(sigMat) != curName])})
+      geneLists[[curName]] <- names(sort(rats, decreasing = TRUE))
+    }
+  } else {
+    olNames <- names(gList)[names(gList) %in% colnames(sigMat)]
+    if(length(olNames) < length(gList) | length(olNames) < ncol(sigMat)) {
+      message('Not all cell-type names match between gList and sigMat')
+      message('  Only matched cell-types will be calculated')
+    }
+    for (curName in olNames) {
+      olGenes <- rownames(gList[[curName]])[rownames(gList[[curName]]) %in% rownames(sigMat)]
+      
+      #Make sure that genes are high in current cell type.
+      rats <- sapply(olGenes, function(x){ sigMat[x,curName] / sum(sigMat[x,colnames(sigMat) != curName])})
+      rats <- rats[rats>1]
+      geneLists[[curName]] <- names(sort(rats, decreasing = TRUE))
+    }
+  }
+  
+  return(geneLists)
 }
 
 #  Function removed to pass R CMD check --as-cran because xCell is on GitHub not CRAN. 

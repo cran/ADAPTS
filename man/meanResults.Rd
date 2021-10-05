@@ -13,8 +13,14 @@ meanResults(allResList, changePer = 1)
 }
 \value{
 The mean and standard deviation of all the results, along with the number of iterations needed for the results to converge.
+A meta analysis for the results from multiple iterations
+
+The mean and standard deviation of all the results, along with the number of iterations needed for the results to converge.
 }
 \description{
+Calculate the mean and the standard deviation of the results from all the iterations, and also 
+test for convergence by % of change with each additional iteration.
+
 Calculate the mean and the standard deviation of the results from all the iterations, and also 
 test for convergence by % of change with each additional iteration.
 }

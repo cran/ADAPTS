@@ -10,7 +10,8 @@ loopTillConvergence(
   exprData,
   changePer,
   handMetaCluster,
-  testOnHalf
+  testOnHalf,
+  condTol = 1.01
 )
 }
 \arguments{
@@ -26,10 +27,10 @@ loopTillConvergence(
 cells into same cluster use clustWspillOver (DEFAULT: NULL)}
 
 \item{testOnHalf}{Set to TRUE to leave half the data as a test set to validate all the matrices}
+
+\item{condTol}{The tolerance in the reconstruction algorithm.  1.0 = no tolerance, 1.05 = 5\% tolerance (DEFAULT: 1.01)}
 }
 \value{
-A list of results generated from all the iterative calls of testAllSigMatrices
-
 A list of results generated from all the iterative calls of testAllSigMatrices
 }
 \description{

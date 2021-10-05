@@ -18,7 +18,8 @@ AugmentSigMatrix(
   addTitle = NULL,
   autoDetectMin = FALSE,
   calcSpillOver = FALSE,
-  pdfDir = tempdir()
+  pdfDir = tempdir(),
+  plotIt = TRUE
 )
 }
 \arguments{
@@ -49,6 +50,8 @@ AugmentSigMatrix(
 \item{calcSpillOver}{Use the training data to calculate a spillover matrix (DEFAULT: FALSE)}
 
 \item{pdfDir}{A fold to write the pdf file to if plotToPDF=TRUE (DEFAULT: tempdir())}
+
+\item{plotIt}{Set to FALSE to suppress non-PDF plotting (DEFAULT: TRUE)}
 }
 \value{
 an augmented cell type signature matrix
