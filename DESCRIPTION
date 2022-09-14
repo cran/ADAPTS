@@ -2,7 +2,7 @@ Package: ADAPTS
 Type: Package
 Title: Automated Deconvolution Augmentation of Profiles for Tissue
         Specific Cells
-Version: 1.0.21
+Version: 1.0.22
 Author: Samuel A Danziger
 Maintainer: Samuel A Danziger <sam.danziger@gmail.com>
 Copyright: Bristol-Myers Squibb
@@ -20,6 +20,6 @@ Imports: missForest, e1071, ComICS, pheatmap, doParallel, utils,
 Suggests: R.rsp, DeconRNASeq, WGCNA
 VignetteBuilder: R.rsp
 NeedsCompilation: no
-Packaged: 2021-09-29 15:52:08 UTC; danziges
+Packaged: 2022-09-14 02:37:08 UTC; sdanzige
 Repository: CRAN
-Date/Publication: 2021-10-05 08:30:16 UTC
+Date/Publication: 2022-09-14 06:50:14 UTC

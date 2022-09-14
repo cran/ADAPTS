@@ -200,7 +200,7 @@ AugmentSigMatrix <- function(origMatrix, fullData, newData, gList, nGenes=1:100,
   }
   
   unAug <- origMatrix[colnames(origMatrix)[colnames(origMatrix) %in% colnames(fullData)]]
-  cNums.orig <- kappa(unAug)
+  cNums.orig <- kappa(as.matrix(unAug))
   
   #Baseline condition number.
   newCtypes <- unique(colnames(newData))
@@ -226,7 +226,7 @@ AugmentSigMatrix <- function(origMatrix, fullData, newData, gList, nGenes=1:100,
   } else {
     origMatrix.imp <- origMatrix
   }
-  cNums.new <- kappa(origMatrix.imp)
+  cNums.new <- kappa(as.matrix(origMatrix.imp))
   
   selGenes <- list()
   newMatrix <- origMatrix
@@ -275,7 +275,7 @@ AugmentSigMatrix <- function(origMatrix, fullData, newData, gList, nGenes=1:100,
     newGenes <- newGenes[!is.na(newGenes)]
     curMatGenes <- c(rownames(origMatrix), newGenes)
     curMat <- impMatrix[curMatGenes[curMatGenes %in% rownames(impMatrix)],]
-    cNums <- c(cNums, kappa(curMat))
+    cNums <- c(cNums, kappa(as.matrix(curMat)))
     nGenes <- c(nGenes, nrow(curMat))
   }
   
@@ -342,7 +342,7 @@ AugmentSigMatrix <- function(origMatrix, fullData, newData, gList, nGenes=1:100,
     legText <- c('Unagumented Signature Matrix', 'Minimum Smoothed Condition Number', 'Best Augmented Signature Matrix')
     pchs <- c('o', 'x', 'x')
     cols <- c('red', 'purple', 'blue')
-    ylims <- c(min(cNums.orig,cNums,kappa(sigMatrix))*0.95, max(cNums.orig, cNums)*1.05)
+    ylims <- c(min(cNums.orig,cNums,kappa(as.matrix(sigMatrix)))*0.95, max(cNums.orig, cNums)*1.05)
     graphics::plot(x=nGenes, y=cNums,
                    xlab='Number of Genes', ylab='Condition Number (lower is more stable)',
                    main=titleStr, ylim=ylims)
@@ -354,7 +354,7 @@ AugmentSigMatrix <- function(origMatrix, fullData, newData, gList, nGenes=1:100,
       legText <- c(legText, 'Post-Normalized')
       pchs <- c(pchs, 'x')
       cols <- c(cols, 'violetred')
-      graphics::points(x=nGenes[smallMin], y=kappa(sigMatrix), col='violetred', pch='x', cex=1.5)
+      graphics::points(x=nGenes[smallMin], y=kappa(as.matrix(sigMatrix)), col='violetred', pch='x', cex=1.5)
     }
     graphics::legend('topright', legend=legText, pch=pchs, col=cols)
     
@@ -381,14 +381,14 @@ AugmentSigMatrix <- function(origMatrix, fullData, newData, gList, nGenes=1:100,
   #note, this is a bad idea, it pretty much monotonically shrinks.
   postShrink <- FALSE
   if(postShrink==TRUE) {
-    curComp <- kappa(sigMatrix)
+    curComp <- kappa(as.matrix(sigMatrix))
     names(curComp) <- ""
     
     newSigMatrix <- sigMatrix
     for(i in 1:(nrow(sigMatrix)-1)) {
       #Remove genes one at a time and determine which will minimize the condition number
       newComps <- foreach(fe_curGene = rownames(newSigMatrix), .combine=c) %dopar% {
-        kappa(newSigMatrix[rownames(newSigMatrix)!=fe_curGene,])
+        kappa(as.matrix(newSigMatrix[rownames(newSigMatrix)!=fe_curGene,]))
       }
       names(newComps) <- rownames(newSigMatrix)
       
@@ -701,7 +701,7 @@ plotKappas <- function(kappas, nGenes, smData=NULL, titleStr='Shrink Signature M
 #' verbose=FALSE, plotIt=FALSE, singleCore=TRUE, fastStop=TRUE)
 #' 
 shrinkByKappa <- function(sigMatrix, numChunks=NULL, verbose=TRUE, plotIt=TRUE, singleCore=FALSE, fastStop=TRUE) {
-  curComp <- kappa(sigMatrix)
+  curComp <- kappa(as.matrix(sigMatrix))
   names(curComp) <- ""
   
   newSigMatrix <- sigMatrix
@@ -718,11 +718,11 @@ shrinkByKappa <- function(sigMatrix, numChunks=NULL, verbose=TRUE, plotIt=TRUE, 
     #  It's really to slow to do recalcualte this every iteration.
     if(singleCore==TRUE) {
       newComps <- foreach(fe_curGene = rownames(newSigMatrix), .combine=c) %do% {
-        kappa(newSigMatrix[rownames(newSigMatrix)!=fe_curGene,])
+        kappa(as.matrix(newSigMatrix[rownames(newSigMatrix)!=fe_curGene,]))
       }
     } else {
       newComps <- foreach(fe_curGene = rownames(newSigMatrix), .combine=c) %dopar% {
-        kappa(newSigMatrix[rownames(newSigMatrix)!=fe_curGene,])
+        kappa(as.matrix(newSigMatrix[rownames(newSigMatrix)!=fe_curGene,]))
       }
     } #if(singleCore==TRUE) {
     names(newComps) <- rownames(newSigMatrix)
@@ -739,11 +739,11 @@ shrinkByKappa <- function(sigMatrix, numChunks=NULL, verbose=TRUE, plotIt=TRUE, 
     #  This loop makes sure that this doesn't happen. 
     for(curRemGene in remGene) {
       tempSigMat <- newSigMatrix[rownames(newSigMatrix) != curRemGene,,drop=FALSE]
-      if(nrow(tempSigMat)>0 && !is.infinite(kappa(tempSigMat))) {newSigMatrix <- tempSigMat}
+      if(nrow(tempSigMat)>0 && !is.infinite(kappa(as.matrix(tempSigMat)))) {newSigMatrix <- tempSigMat}
     }
     #newSigMatrix <- newSigMatrix[!rownames(newSigMatrix) %in% remGene,]
     
-    condNum <- kappa(newSigMatrix)
+    condNum <- kappa(as.matrix(newSigMatrix))
     if( i == 1) {
       deltaKappa <- as.numeric(NA)
     } else {

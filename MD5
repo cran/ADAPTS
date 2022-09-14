@@ -1,12 +1,12 @@
-2f5e46dc122781765ad6a526140c54e0 *DESCRIPTION
+a1989c448612af2e8748a753a422a71f *DESCRIPTION
 c8613b4c24a0432b3eedc660864b78f3 *LICENSE
 114c54c1808dfff86064250736de54e7 *NAMESPACE
-e5ac5dd689c6139e15eb5821c44f0c41 *R/MakeSigMatrix.R
+8edbca9df0aa0e592f259eb53edb4a77 *R/MakeSigMatrix.R
 51a3a73bdd483c5e971b31e207f78db9 *R/onlyDeconAlgorithms.R
 f13b6fc04b6a8ec2fe03f911e71605cf *R/runLoops.R
 eb321efdf0fca3c163258674be0a1cdd *R/zzz.R
 ef7de8f8c87c289a3a239e9c8acc3bc4 *README.md
-dd095e9ff81a772ad2feff89d3b5614b *build/vignette.rds
+c27ab2d2927794bf0f74c0afb9166db0 *build/vignette.rds
 793f3f96da30fc97bde6435e6fb14bb4 *data/LM22.RData
 213b40b088e82b645242caaca03fe57f *data/Licenses.RData
 456ff6c6f98423c1b7fc65806243db09 *data/MGSM27.RData
